@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>Brusca.Core</AssemblyName>
+    <RootNamespace>Brusca.Core</RootNamespace>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0</Version>
+    <PackageId>Brusca.Core</PackageId>
+    <Authors>Brusca</Authors>
+    <Description>Domain models, interfaces, enums, and options for the Brusca file organizer.</Description>
+    <RepositoryUrl>https://github.com/your-org/Brusca.Core</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Logging abstractions only - no concrete providers in Core -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.*" />
+    <!-- Audit logging abstraction -->
+    <PackageReference Include="Audit.NET" Version="27.*" />
+    <!-- Result pattern -->
+    <PackageReference Include="FluentResults" Version="3.*" />
+    <!-- Guard clauses -->
+    <PackageReference Include="Ardalis.GuardClauses" Version="4.*" />
+  </ItemGroup>
+
+</Project>
