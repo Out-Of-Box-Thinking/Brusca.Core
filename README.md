@@ -76,6 +76,7 @@ dotnet build
 
 | Repo | Role |
 |------|------|
-| [Brusca.Infrastructure](../Brusca.Infrastructure) | Implements all Core interfaces |
-| [Brusca.Api](../Brusca.Api) | ASP.NET Core 9 host, REST API |
-| [Brusca.Tests](../Brusca.Tests) | xUnit integration and unit tests |
+| [Brusca.Infrastructure](https://github.com/Out-Of-Box-Thinking/Brusca.Infrastructure) | Implements all Core interfaces |
+| [Brusca.Api](https://github.com/Out-Of-Box-Thinking/Brusca.Api) | ASP.NET Core 9 host, REST API |
+| [Brusca.Tests](https://github.com/Out-Of-Box-Thinking/Brusca.Tests) | xUnit integration and unit tests |
+| [Brusca.Web](https://github.com/Out-Of-Box-Thinking/Brusca.Web) | Astro 5 front-end |
