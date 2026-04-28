@@ -9,7 +9,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>latest</LangVersion>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Version>1.0.1200-sanitize</Version>
+    <Version>1.0.1300-pathaccess</Version>
     <PackageId>Brusca.Core</PackageId>
     <Authors>Brusca</Authors>
     <Description>Domain models, interfaces, enums, and options for the Brusca file organizer.</Description>
