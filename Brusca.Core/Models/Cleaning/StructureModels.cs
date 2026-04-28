@@ -87,4 +87,12 @@ public sealed class FileRelocationRecord
     public string? ErrorMessage { get; set; }
     public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
     public DateTime? CompletedAtUtc { get; set; }
+
+    /// <summary>
+    /// SHA-256 hex digest of the file at <see cref="AfterPath"/> immediately
+    /// after the relocation completed. Combined with
+    /// <see cref="Brusca.Core.Models.Pii.RedactedFileDescriptor.ContentHash"/>
+    /// (the before-digest) this proves the move did not corrupt the file.
+    /// </summary>
+    public string? ContentHashAfter { get; set; }
 }

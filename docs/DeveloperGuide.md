@@ -173,19 +173,20 @@ CREATE TABLE cleaning.StructurePlan (
 );
 
 CREATE TABLE cleaning.FileRelocation (
-    Id              uniqueidentifier NOT NULL PRIMARY KEY,
-    CleaningId      uniqueidentifier NOT NULL,
-    RedactedFileId  uniqueidentifier NULL,
-    OperationType   int              NOT NULL,
-    ExecutionTarget int              NOT NULL,
-    BeforePath      nvarchar(1024)   NULL,
-    BeforeName      nvarchar(512)    NULL,
-    AfterPath       nvarchar(1024)   NULL,
-    AfterName       nvarchar(512)    NULL,
-    Status          int              NOT NULL,
-    ErrorMessage    nvarchar(2000)   NULL,
-    CreatedAtUtc    datetime2        NOT NULL,
-    CompletedAtUtc  datetime2        NULL
+    Id               uniqueidentifier NOT NULL PRIMARY KEY,
+    CleaningId       uniqueidentifier NOT NULL,
+    RedactedFileId   uniqueidentifier NULL,
+    OperationType    int              NOT NULL,
+    ExecutionTarget  int              NOT NULL,
+    BeforePath       nvarchar(1024)   NULL,
+    BeforeName       nvarchar(512)    NULL,
+    AfterPath        nvarchar(1024)   NULL,
+    AfterName        nvarchar(512)    NULL,
+    Status           int              NOT NULL,
+    ErrorMessage     nvarchar(2000)   NULL,
+    CreatedAtUtc     datetime2        NOT NULL,
+    CompletedAtUtc   datetime2        NULL,
+    ContentHashAfter char(64)         NULL  -- SHA-256 of AfterPath at completion
 );
 ```
 
