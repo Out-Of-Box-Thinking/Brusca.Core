@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <Version>1.0.0</Version>
     <PackageId>Brusca.Core</PackageId>
     <Authors>Brusca</Authors>
