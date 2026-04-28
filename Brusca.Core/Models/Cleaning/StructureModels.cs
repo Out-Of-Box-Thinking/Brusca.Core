@@ -96,3 +96,47 @@ public sealed class FileRelocationRecord
     /// </summary>
     public string? ContentHashAfter { get; set; }
 }
+
+/// <summary>
+/// A set of <see cref="Brusca.Core.Models.Pii.RedactedFileDescriptor"/> rows
+/// that share the same <c>ContentHash</c> — i.e. byte-identical duplicates.
+/// One file in the group is elected the keeper and materialized normally;
+/// the rest are recorded as <see cref="RelocationOperationType.SkipDuplicate"/>
+/// rows so the audit log shows them but no extra copy is produced.
+/// </summary>
+public sealed class DuplicateGroup
+{
+    public string ContentHash { get; set; } = string.Empty;
+    /// <summary>The chosen representative file (kept).</summary>
+    public Guid KeepRedactedFileId { get; set; }
+    /// <summary>Every redacted-file id in the group (including the keeper).</summary>
+    public IReadOnlyList<Guid> RedactedFileIds { get; set; } = [];
+    /// <summary>Strategy used to pick the keeper.</summary>
+    public DuplicateKeepStrategy Strategy { get; set; } = DuplicateKeepStrategy.KeepFirstPath;
+}
+
+/// <summary>
+/// One row per file the user has elected to <i>promote</i> — i.e. delete
+/// the original to the recycle bin now that the materialized copy has been
+/// verified by hash. Promotion is a deliberate, opt-in step that never runs
+/// automatically: structure execution always produces copies first; promotion
+/// is the explicit second pass that finishes the cleanup.
+/// </summary>
+public sealed class PromotionRecord
+{
+    public Guid Id { get; init; } = Guid.NewGuid();
+    public Guid CleaningId { get; set; }
+
+    /// <summary>The relocation that produced the materialized copy this record promotes.</summary>
+    public Guid FileRelocationId { get; set; }
+
+    /// <summary>The absolute path of the original that was sent to the recycle bin.</summary>
+    public string OriginalPath { get; set; } = string.Empty;
+
+    public PromotionStatus Status { get; set; } = PromotionStatus.Pending;
+    public string? ErrorMessage { get; set; }
+
+    public DateTime? VerifiedAtUtc { get; set; }
+    public DateTime? PromotedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; init; } = DateTime.UtcNow;
+}

@@ -90,3 +90,23 @@ public sealed class DocumentTypeSummary
     public string Extension { get; set; } = string.Empty;
     public int Count { get; set; }
 }
+
+/// <summary>
+/// The vocabulary of token slots available, per <see cref="DocumentType"/>,
+/// across the redacted corpus of one cleaning. Sent to Claude alongside
+/// <see cref="DocumentTypeSummary"/> rows so Claude only emits
+/// <c>RequiredTokenSlots</c> values that the host can actually substitute.
+/// </summary>
+public sealed class PiiSlotCatalog
+{
+    public Guid CleaningId { get; init; }
+    public IReadOnlyList<DocumentTypeSlotEntry> Entries { get; init; } = [];
+}
+
+/// <summary>One row of the <see cref="PiiSlotCatalog"/>.</summary>
+public sealed class DocumentTypeSlotEntry
+{
+    public DocumentType DocumentType { get; set; }
+    /// <summary>The PII kinds present at least once across files of this DocumentType.</summary>
+    public IReadOnlyList<PiiKind> AvailableKinds { get; set; } = [];
+}

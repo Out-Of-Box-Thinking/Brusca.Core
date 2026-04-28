@@ -91,13 +91,15 @@ public interface IEncryptionService
 
 /// <summary>
 /// Asks Claude to design a directory layout from anonymized data only.
-/// The input contains ONLY DocumentType + extension counts — never PII or content.
+/// The input contains ONLY DocumentType + extension counts and the per-type
+/// PII slot catalog — never raw PII or file content.
 /// </summary>
 public interface IClaudeStructureService
 {
     Task<DirectoryStructurePlan> AnalyzeStructureAsync(
         Guid cleaningId,
         IReadOnlyList<DocumentTypeSummary> summaries,
+        PiiSlotCatalog? slotCatalog = null,
         CancellationToken ct = default);
 }
 
@@ -117,6 +119,15 @@ public interface IStructureExecutionService
         Guid cleaningId, CancellationToken ct = default);
 
     /// <summary>
+    /// Computes the same set of relocations <see cref="ExecuteStructureAsync"/>
+    /// would produce and persists them with <c>Status = Pending</c> — without
+    /// touching the file system. Used by the UI to preview the materialized
+    /// layout before committing.
+    /// </summary>
+    Task<Result<IReadOnlyList<FileRelocationRecord>>> PlanRelocationsAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
     /// Reverses every <see cref="FileRelocationRecord"/> for the cleaning whose
     /// <see cref="RelocationStatus"/> is <c>Succeeded</c>, restoring each file
     /// from <c>AfterPath</c> back to <c>BeforePath</c>. Records are flipped to
@@ -124,6 +135,32 @@ public interface IStructureExecutionService
     /// remaining work.
     /// </summary>
     Task<Result<IReadOnlyList<FileRelocationRecord>>> RollbackAsync(
+        Guid cleaningId, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Identifies groups of byte-identical redacted files (same
+/// <c>ContentHash</c>) inside a cleaning. Used by
+/// <see cref="IStructureExecutionService"/> so duplicates materialize only
+/// their elected keeper.
+/// </summary>
+public interface IDuplicateDetectionService
+{
+    Task<Result<IReadOnlyList<DuplicateGroup>>> AnalyzeAsync(
+        Guid cleaningId, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Optional, hash-gated, recycle-bin-based finalisation step. For every
+/// successfully-materialized relocation, verifies the post-move hash matches
+/// the original then sends the original to the recycle bin. Windows-only.
+/// </summary>
+public interface IPromotionService
+{
+    Task<Result<IReadOnlyList<PromotionRecord>>> PromoteAsync(
+        Guid cleaningId, string userId, CancellationToken ct = default);
+
+    Task<Result<IReadOnlyList<PromotionRecord>>> GetPromotionsAsync(
         Guid cleaningId, CancellationToken ct = default);
 }
 

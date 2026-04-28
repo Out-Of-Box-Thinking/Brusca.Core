@@ -96,7 +96,32 @@ public interface IRedactedFileRepository
     Task<Result<RedactedFileDescriptor>> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Result<IReadOnlyList<RedactedFileDescriptor>>> GetByCleaningIdAsync(Guid cleaningId, CancellationToken ct = default);
     Task<Result<IReadOnlyList<DocumentTypeSummary>>> GetDocumentTypeSummariesAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the per-DocumentType vocabulary of <see cref="PiiKind"/> slots
+    /// observed across the redacted corpus of the cleaning. Sent to Claude
+    /// alongside the document-type summaries so the structure plan can only
+    /// emit slots that the host can actually rehydrate.
+    /// </summary>
+    Task<Result<PiiSlotCatalog>> GetSlotCatalogAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns groups of redacted descriptors sharing the same
+    /// <c>ContentHash</c>. Each group has 2+ entries; singletons are excluded.
+    /// </summary>
+    Task<Result<IReadOnlyList<DuplicateGroup>>> GetDuplicateGroupsAsync(Guid cleaningId, CancellationToken ct = default);
+
     Task<Result> DeleteByCleaningIdAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Records the per-file PII-kind counts that drive
+    /// <see cref="GetSlotCatalogAsync"/>. Called once per descriptor right
+    /// after <see cref="CreateAsync"/>.
+    /// </summary>
+    Task<Result> SaveDetectedPiiKindsAsync(
+        Guid redactedFileId,
+        IEnumerable<PiiKind> kinds,
+        CancellationToken ct = default);
 }
 
 /// <summary>Persists the Claude-generated directory structure plan and its rules.</summary>
@@ -113,5 +138,36 @@ public interface IFileRelocationRepository
     Task<Result<FileRelocationRecord>> CreateAsync(FileRelocationRecord record, CancellationToken ct = default);
     Task<Result> BulkCreateAsync(IEnumerable<FileRelocationRecord> records, CancellationToken ct = default);
     Task<Result> UpdateStatusAsync(Guid id, RelocationStatus status, string? error, CancellationToken ct = default);
+    Task<Result<FileRelocationRecord>> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<Result<IReadOnlyList<FileRelocationRecord>>> GetByCleaningIdAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Updates the materialized AFTER columns once the file copy finishes.
+    /// Called by <c>IStructureExecutionService</c> when promoting a Pending
+    /// relocation produced by <c>PlanRelocationsAsync</c> into a final
+    /// <c>Succeeded</c> row.
+    /// </summary>
+    Task<Result> UpdateAfterAsync(
+        Guid id,
+        string? afterPath,
+        string? afterName,
+        RelocationStatus status,
+        string? error,
+        string? contentHashAfter,
+        CancellationToken ct = default);
+}
+
+/// <summary>Persists the optional, opt-in PromotionRecord rows.</summary>
+public interface IPromotionRepository
+{
+    Task<Result<PromotionRecord>> CreateAsync(PromotionRecord record, CancellationToken ct = default);
+    Task<Result> UpdateStatusAsync(
+        Guid id,
+        PromotionStatus status,
+        string? error,
+        DateTime? verifiedAtUtc,
+        DateTime? promotedAtUtc,
+        CancellationToken ct = default);
+    Task<Result<IReadOnlyList<PromotionRecord>>> GetByCleaningIdAsync(
+        Guid cleaningId, CancellationToken ct = default);
 }

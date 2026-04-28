@@ -262,7 +262,59 @@ public enum RelocationOperationType
     /// <summary>Create a new directory.</summary>
     CreateDirectory = 3,
     /// <summary>Materialize a templated path/file from a structure plan (always a copy).</summary>
-    Materialize = 4
+    Materialize = 4,
+    /// <summary>
+    /// The source file was identified as a duplicate of another file in the
+    /// same cleaning (same <c>ContentHash</c>) and was deliberately skipped
+    /// by the deduplication pass. No copy is performed; the chosen
+    /// representative is materialized normally.
+    /// </summary>
+    SkipDuplicate = 5
+}
+
+/// <summary>
+/// Behaviour when a structure-plan materialize would write to a path that
+/// already exists at the destination.
+/// </summary>
+public enum MaterializationCollisionPolicy
+{
+    /// <summary>Throw an <see cref="System.IO.IOException"/> and record the file as <c>Failed</c>.</summary>
+    Fail = 0,
+    /// <summary>Append an ascending <c>_(2)</c>, <c>_(3)</c> suffix until a free name is found.</summary>
+    Suffix = 1,
+    /// <summary>Skip the materialize and record the file as <c>Skipped</c>.</summary>
+    Skip = 2
+}
+
+/// <summary>
+/// Lifecycle state of a <c>PromotionRecord</c>. Promotion is the optional,
+/// hash-gated, recycle-bin-based step that replaces the original files with
+/// the materialized copy once the user has verified the plan.
+/// </summary>
+public enum PromotionStatus
+{
+    /// <summary>Created but the post-materialize hash check has not run yet.</summary>
+    Pending = 0,
+    /// <summary>The materialized copy's hash matches the original — safe to promote.</summary>
+    Verified = 1,
+    /// <summary>The original was deleted to the recycle bin and the copy is now canonical.</summary>
+    Promoted = 2,
+    /// <summary>Promotion failed — see <c>PromotionRecord.ErrorMessage</c>.</summary>
+    Failed = 3
+}
+
+/// <summary>
+/// Strategy used by the duplicate-detection pass to choose the single
+/// representative file inside a duplicate group.
+/// </summary>
+public enum DuplicateKeepStrategy
+{
+    /// <summary>Keep the file with the most recent <c>DiscoveredAtUtc</c>.</summary>
+    KeepNewest = 0,
+    /// <summary>Keep the file whose <c>OriginalFilePath</c> is alphabetically first.</summary>
+    KeepFirstPath = 1,
+    /// <summary>Keep the file whose <c>OriginalFilePath</c> is the longest (deepest folder).</summary>
+    KeepDeepestPath = 2
 }
 
 /// <summary>Outcome of an individual relocation entry.</summary>

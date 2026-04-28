@@ -52,6 +52,33 @@ public interface ICleaningService
         Guid cleaningId, CancellationToken ct = default);
 
     /// <summary>
+    /// Computes the relocations that <see cref="ExecuteStructurePlanAsync"/>
+    /// would produce and persists them with <c>Status = Pending</c> — without
+    /// touching the file system. Lets the UI preview the materialized layout.
+    /// </summary>
+    Task<Result<IReadOnlyList<FileRelocationRecord>>> PlanStructureRelocationsAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Identifies groups of byte-identical files (same SHA-256 content hash)
+    /// inside the cleaning. Used by the UI to surface duplicates to the user
+    /// before structure execution skips them.
+    /// </summary>
+    Task<Result<IReadOnlyList<DuplicateGroup>>> AnalyzeDuplicatesAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Optional, hash-gated, recycle-bin-based finalisation step. For every
+    /// successfully materialized relocation, verifies the post-move hash
+    /// matches the original then sends the original to the recycle bin.
+    /// </summary>
+    Task<Result<IReadOnlyList<PromotionRecord>>> PromoteCleaningAsync(
+        Guid cleaningId, string userId, CancellationToken ct = default);
+
+    Task<Result<IReadOnlyList<PromotionRecord>>> GetPromotionsAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
     /// Applies the most recently generated structure plan against the execution
     /// target — decrypting the PII column to fill template slots — and records
     /// every before/after operation into <c>FileRelocationRecord</c>.

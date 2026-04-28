@@ -23,6 +23,7 @@ public sealed class BruscaOptions
     public ClaudeOptions Claude { get; set; } = new();
     public FileSystemOptions FileSystem { get; set; } = new();
     public PiiOptions Pii { get; set; } = new();
+    public MaterializationOptions Materialization { get; set; } = new();
 
     /// <summary>
     /// Local-instance Infisical secret-manager configuration. When
@@ -176,6 +177,32 @@ public sealed class CustomPiiRule
     public string RegexPattern { get; set; } = string.Empty;
     /// <summary>Maps to a <see cref="Brusca.Core.Enums.PiiKind"/>; defaults to Custom.</summary>
     public string Kind { get; set; } = "Custom";
+}
+
+/// <summary>
+/// Knobs that govern how the structure-execution pipeline materializes copies
+/// onto the execution target.
+/// </summary>
+public sealed class MaterializationOptions
+{
+    /// <summary>
+    /// What to do when the templated destination path already exists. Defaults
+    /// to <see cref="MaterializationCollisionPolicy.Suffix"/> which appends an
+    /// ascending <c>_(2)</c>, <c>_(3)</c> until a free name is found.
+    /// </summary>
+    public MaterializationCollisionPolicy CollisionPolicy { get; set; } = MaterializationCollisionPolicy.Suffix;
+
+    /// <summary>
+    /// When true, the duplicate-detection pass runs before materialization and
+    /// every group of byte-identical files materializes only its keeper —
+    /// the rest are recorded as <c>SkipDuplicate</c>.
+    /// </summary>
+    public bool DeduplicateByContentHash { get; set; } = true;
+
+    /// <summary>
+    /// Strategy used to pick the keeper inside a duplicate group.
+    /// </summary>
+    public DuplicateKeepStrategy DuplicateKeepStrategy { get; set; } = DuplicateKeepStrategy.KeepFirstPath;
 }
 
 /// <summary>
