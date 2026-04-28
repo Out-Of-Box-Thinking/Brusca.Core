@@ -15,7 +15,7 @@ This page is therefore for **integrators** who consume `Brusca.Core` from anothe
 | `Models/Pii/`        | `PiiSegment`, `RedactedFileDescriptor`, `DocumentTypeSummary` |
 | `Models/Logging/`    | `AuditLogEntry`, `ErrorLogEntry` |
 | `Models/`            | `BruscaOptions` (typed-options root) including `PiiOptions` |
-| `Contracts/Services/`     | `ICleaningService`, `IFileSystemService`, `IFileExtensionService`, `ITreeProjectionService`, `IPiiRedactionService`, `IDocumentTypeClassifier`, `IEncryptionService`, `IClaudeStructureService`, `IStructureExecutionService`, `IOcrService`, `ISecretProvider` |
+| `Contracts/Services/`     | `ICleaningService`, `IFileSystemService`, `IFileExtensionService`, `ITreeProjectionService`, `IPiiRedactionService`, `IPiiRehydrationService`, `IDocumentTypeClassifier`, `IEncryptionService`, `IClaudeStructureService`, `IStructureExecutionService`, `IOcrService`, `IImageRedactionService`, `IFileHashService`, `ISecretProvider` |
 | `Contracts/Repositories/` | `ICleaningRepository`, `IFileExtensionRepository`, `IPromptStepRepository`, `IPromptStepCommandRepository`, `IRedactedFileRepository`, `IStructurePlanRepository`, `IFileRelocationRepository` |
 | `Contracts/Logging/`      | `IAuditLogger`, `IErrorLogger` |
 | `Enums/`                  | All enums including `DocumentType`, `PiiKind`, `RelocationOperationType`, `RelocationStatus`, and the new `CleaningStatus` values (`Redacting`, `Redacted`, `StructurePlanGenerated`, `StructureExecuting`, `Archived`) |
@@ -77,7 +77,24 @@ input → │ IPiiRedactionService│ ─► redacted text + PiiSegment[] (in me
                   │  DirectoryStructurePlan
                   ▼
         ┌──────────────────────────┐
+        │ IPiiRehydrationService    │ ─► tokens swapped back to literals
+        └──────────────────────────┘            (in-process, never logged)
+                  │
+                  ▼
+        ┌──────────────────────────┐
+        │ IFileHashService          │ ─► SHA-256 before/after digests
+        └──────────────────────────┘
+                  │
+                  ▼
+        ┌──────────────────────────┐
+        │ IImageRedactionService    │ ─► sanitized image copy (visual PII occluded)
+        └──────────────────────────┘
+                  │
+                  ▼
+        ┌──────────────────────────┐
         │ IStructureExecutionService│ ─► FileRelocationRecord[] (before/after)
+        │   .ExecuteStructureAsync  │
+        │   .RollbackAsync          │ ─► reverses succeeded relocations on demand
         └──────────────────────────┘
 ```
 
@@ -86,7 +103,10 @@ input → │ IPiiRedactionService│ ─► redacted text + PiiSegment[] (in me
 1. The original PII string is **only** held in memory inside `PiiSegment.Value` for the duration of one redaction pass.
 2. At rest the PII lives **only** in `RedactedFileDescriptor.EncryptedPiiJson`, encrypted by `IEncryptionService`.
 3. The Claude structure call (`IClaudeStructureService.AnalyzeStructureAsync`) receives ONLY `DocumentTypeSummary` rows — no file names, no content, no PII.
-4. Every move/rename/create operation is logged as a `FileRelocationRecord` capturing both before-state and after-state (path + name).
+4. PII is rehydrated by `IPiiRehydrationService` only at execution time, in-process, and only to materialize concrete folder/file paths from the rule templates. Rehydrated values are never logged.
+5. Image files containing visible PII are replaced by a sanitized copy from `IImageRedactionService` before being moved to the execution target; the original remains untouched on the source path.
+6. Every move/rename/create operation is logged as a `FileRelocationRecord` capturing both before-state and after-state (path + name) plus the SHA-256 digest from `IFileHashService` for integrity proof.
+7. An executed structure plan can be reversed via `IStructureExecutionService.RollbackAsync` (surfaced through `ICleaningService.RollbackStructurePlanAsync`) until the cleaning is archived. Reversed records are flipped to `RelocationStatus.RolledBack`.
 
 ---
 

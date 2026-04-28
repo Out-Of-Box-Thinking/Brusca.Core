@@ -23,8 +23,47 @@ public interface IPiiRedactionService
 /// <summary>Result of a single redaction pass.</summary>
 public sealed class PiiRedactionResult
 {
+    /// <summary>The content with every detected PII span replaced by its token.</summary>
     public string RedactedContent { get; set; } = string.Empty;
+
+    /// <summary>The list of PII spans that were stripped — original values populated for in-memory use only.</summary>
     public IReadOnlyList<PiiSegment> Segments { get; set; } = [];
+}
+
+/// <summary>
+/// Re-applies the encrypted PII column back into a previously redacted string.
+///
+/// The Claude pipeline only ever sees redacted tokens (e.g. <c>[[PII:PersonName:0001]]</c>).
+/// When a generated filename, folder template, or user-facing report needs to
+/// be materialized for the local file system, the host swaps those tokens
+/// back to their original literals using this service.
+///
+/// PII is sourced from <c>RedactedFileDescriptor.EncryptedPiiJson</c>, decrypted
+/// in-process via <see cref="IEncryptionService"/>. Implementations MUST NOT
+/// log rehydrated values nor send them off-host.
+/// </summary>
+public interface IPiiRehydrationService
+{
+    /// <summary>
+    /// Replaces every PII token in <paramref name="redactedText"/> with the
+    /// original literal stored against the given redacted file descriptor.
+    /// </summary>
+    /// <param name="redactedFileId">The descriptor whose encrypted PII column will be consulted.</param>
+    /// <param name="redactedText">Text containing zero or more PII tokens.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<Result<string>> RehydrateAsync(
+        Guid redactedFileId, string redactedText, CancellationToken ct = default);
+
+    /// <summary>
+    /// Resolves PII tokens that may appear inside a <c>DirectoryStructureRule</c>
+    /// folder/file path template. Tokens are matched against any redacted
+    /// descriptor for the given cleaning that exposes the requested slot.
+    /// </summary>
+    /// <param name="cleaningId">The cleaning whose redacted descriptors form the lookup pool.</param>
+    /// <param name="templatePath">A folder or file template containing zero or more tokens.</param>
+    /// <param name="ct">Cancellation token.</param>
+    Task<Result<string>> RehydratePathAsync(
+        Guid cleaningId, string templatePath, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -69,8 +108,78 @@ public interface IClaudeStructureService
 /// </summary>
 public interface IStructureExecutionService
 {
+    /// <summary>
+    /// Applies the most recently generated <c>DirectoryStructurePlan</c> against
+    /// the chosen execution root, recording every move/rename into
+    /// <see cref="FileRelocationRecord"/>.
+    /// </summary>
     Task<Result<IReadOnlyList<FileRelocationRecord>>> ExecuteStructureAsync(
         Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reverses every <see cref="FileRelocationRecord"/> for the cleaning whose
+    /// <see cref="RelocationStatus"/> is <c>Succeeded</c>, restoring each file
+    /// from <c>AfterPath</c> back to <c>BeforePath</c>. Records are flipped to
+    /// <c>RolledBack</c>; failures are reported per-record without aborting the
+    /// remaining work.
+    /// </summary>
+    Task<Result<IReadOnlyList<FileRelocationRecord>>> RollbackAsync(
+        Guid cleaningId, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Produces a sanitized copy of an image whose visible regions contain PII
+/// (e.g. signed forms, ID scans, screenshots). The output image has the PII
+/// regions occluded — typically a black box or gaussian blur over the
+/// bounding boxes returned by OCR — and is what gets moved to the execution
+/// target. The original is left untouched on the source path.
+///
+/// Implementations MUST be local-only: no image bytes may leave the host.
+/// </summary>
+public interface IImageRedactionService
+{
+    /// <summary>True when this service can redact the given extension.</summary>
+    bool CanRedact(string extension);
+
+    /// <summary>
+    /// Reads <paramref name="sourceImagePath"/>, occludes every region in
+    /// <paramref name="regions"/>, and writes the sanitized copy to
+    /// <paramref name="targetImagePath"/>.
+    /// </summary>
+    Task<Result<ImageRedactionResult>> RedactAsync(
+        string sourceImagePath,
+        string targetImagePath,
+        IReadOnlyList<ImageRedactionRegion> regions,
+        CancellationToken ct = default);
+}
+
+/// <summary>
+/// A rectangular region inside a source image that should be occluded in
+/// the sanitized copy. Coordinates are in source-image pixels.
+/// </summary>
+public sealed class ImageRedactionRegion
+{
+    /// <summary>Left edge, in source-image pixels (zero-based).</summary>
+    public int X { get; set; }
+    /// <summary>Top edge, in source-image pixels (zero-based).</summary>
+    public int Y { get; set; }
+    /// <summary>Region width, in pixels.</summary>
+    public int Width { get; set; }
+    /// <summary>Region height, in pixels.</summary>
+    public int Height { get; set; }
+    /// <summary>Free-form label (e.g. the matching <c>PiiKind</c>) for audit.</summary>
+    public string? Label { get; set; }
+}
+
+/// <summary>Outcome of a single image-redaction pass.</summary>
+public sealed class ImageRedactionResult
+{
+    /// <summary>Absolute path to the sanitized image written by the service.</summary>
+    public string SanitizedImagePath { get; set; } = string.Empty;
+    /// <summary>How many regions were occluded.</summary>
+    public int RegionsOccluded { get; set; }
+    /// <summary>SHA-256 hex digest of the sanitized image bytes for integrity checks.</summary>
+    public string? SanitizedContentHash { get; set; }
 }
 
 /// <summary>

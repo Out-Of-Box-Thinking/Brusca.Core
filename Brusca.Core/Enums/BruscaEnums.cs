@@ -255,5 +255,7 @@ public enum RelocationStatus
     /// <summary>Execution raised an error; see ErrorMessage.</summary>
     Failed = 2,
     /// <summary>Execution was deliberately skipped (e.g. duplicate target).</summary>
-    Skipped = 3
+    Skipped = 3,
+    /// <summary>The previously-succeeded relocation was reversed by a rollback.</summary>
+    RolledBack = 4
 }

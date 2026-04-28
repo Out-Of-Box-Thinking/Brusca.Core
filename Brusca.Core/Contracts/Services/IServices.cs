@@ -63,6 +63,15 @@ public interface ICleaningService
     Task<Result<IReadOnlyList<FileRelocationRecord>>> GetRelocationsAsync(
         Guid cleaningId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Reverses every successful relocation for the cleaning, restoring each
+    /// file from its <c>AfterPath</c> back to its <c>BeforePath</c>. Use this
+    /// when an executed structure plan needs to be undone before the cleaning
+    /// is archived. Records are updated to <c>RolledBack</c>.
+    /// </summary>
+    Task<Result<IReadOnlyList<FileRelocationRecord>>> RollbackStructurePlanAsync(
+        Guid cleaningId, string userId, CancellationToken ct = default);
+
     // ── Archive flow ─────────────────────────────────────────────────────────
 
     /// <summary>
@@ -114,6 +123,29 @@ public interface IFileExtensionService
 public interface ITreeProjectionService
 {
     DirectoryNode ProjectAfterTree(DirectoryNode before, IReadOnlyList<CleaningPromptStep> approvedSteps);
+}
+
+/// <summary>
+/// Computes file content hashes used by the relocation pipeline to verify
+/// integrity across moves between the source path and the execution target
+/// (especially across NAS shares). The default implementation is SHA-256.
+/// </summary>
+public interface IFileHashService
+{
+    /// <summary>Algorithm name reported in audit rows (e.g. <c>"SHA-256"</c>).</summary>
+    string AlgorithmName { get; }
+
+    /// <summary>
+    /// Computes the digest of the file at <paramref name="filePath"/> and
+    /// returns it as a lowercase hex string.
+    /// </summary>
+    Task<Result<string>> ComputeAsync(string filePath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Compares the digests of two files. Returns <c>true</c> when both files
+    /// exist and produce the same digest.
+    /// </summary>
+    Task<Result<bool>> EqualsAsync(string leftPath, string rightPath, CancellationToken ct = default);
 }
 
 /// <summary>

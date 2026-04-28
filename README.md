@@ -109,12 +109,22 @@ Brusca now strips PII from every file BEFORE any data is sent to Claude, encrypt
 
 ### Pipeline at a glance
 
-1. **Read** \u2014 a supported reader pulls file content into memory.
+1. **Read** \u2014 a supported reader pulls file content into memory. Image
+   formats (`.jpg`, `.png`, `.heic`, `.psd`, \u2026) go through `IOcrService`
+   first so embedded text is recognized.
 2. **Redact** \u2014 `IPiiRedactionService` replaces every PII span with a stable token (`[[PII:Kind:NNNN]]`).
 3. **Classify** \u2014 `IDocumentTypeClassifier` assigns a `DocumentType` from the redacted text + extension.
 4. **Encrypt** \u2014 `IEncryptionService` (ASP.NET Core Data Protection) seals the PII JSON into a database column.
 5. **Plan** \u2014 `IClaudeStructureService` calls Claude with ONLY `DocumentType` + extension counts; receives a `DirectoryStructurePlan` of folder/file templates.
-6. **Execute** \u2014 `IStructureExecutionService` decrypts the PII in memory, fills the templates, performs the move/rename/create, and records every before/after path into `cleaning.FileRelocation`.
+6. **Rehydrate & Execute** \u2014 `IStructureExecutionService` calls
+   `IPiiRehydrationService` to fill template tokens from the encrypted
+   PII column, hashes each file via `IFileHashService` before/after the
+   move, sanitizes any image whose visual content held PII via
+   `IImageRedactionService`, performs the move/rename/create, and
+   records every before/after path into `cleaning.FileRelocation`.
+7. **Undo (optional)** \u2014 `IStructureExecutionService.RollbackAsync`
+   reverses every succeeded relocation back to its source path before
+   the cleaning is archived.
 
 ### Three new database tables
 

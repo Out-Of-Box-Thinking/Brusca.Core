@@ -45,8 +45,11 @@ The PII flow is split across three small interfaces so each piece can be replace
 | `IPiiRedactionService`     | Detect PII spans, return redacted text + segments (PII still in memory only) |
 | `IDocumentTypeClassifier`  | Map redacted content + extension → `DocumentType` |
 | `IEncryptionService`       | Symmetric encryption of the PII JSON column |
+| `IPiiRehydrationService`   | Re-apply the encrypted PII column to redacted text / path templates at execution time |
+| `IImageRedactionService`   | Produce a sanitized image copy with visual PII regions occluded |
+| `IFileHashService`         | Compute SHA-256 digests for integrity verification across moves |
 | `IClaudeStructureService`  | Anonymized call to Claude (DocumentType + extension counts only) |
-| `IStructureExecutionService` | Apply the plan, record before/after `FileRelocationRecord` rows |
+| `IStructureExecutionService` | Apply the plan, record before/after `FileRelocationRecord` rows, and roll them back on demand |
 
 ### When adding a new `PiiKind`
 
@@ -61,6 +64,40 @@ The PII flow is split across three small interfaces so each piece can be replace
 2. Update extension and keyword maps in `HeuristicDocumentTypeClassifier`.
 3. Update the structure-plan prompt in `ClaudeStructureService` if the doc type benefits from a hint.
 4. Add tests under `Brusca.Tests/Infrastructure/HeuristicDocumentTypeClassifierTests.cs`.
+
+### Rehydration, image redaction, hashing, and rollback
+
+These four contracts close the loop between Brusca's anonymized planning
+phase and the destructive execution phase:
+
+- **`IPiiRehydrationService`** — Claude only ever sees redacted tokens
+  (e.g. `[[PII:PersonName:0001]]`). When the executor materializes a
+  rule template such as `Invoices/{{Year}}/{{ClientName}}`, this service
+  decrypts `RedactedFileDescriptor.EncryptedPiiJson` in-process and swaps
+  tokens back to their original literals. PII never leaves the host.
+  Implementations MUST NOT log rehydrated values.
+
+- **`IImageRedactionService`** — `IOcrService` extracts text from images
+  for the redaction pipeline, but the image bytes themselves still hold
+  visual PII (signatures, photos on IDs, screenshots of inboxes). This
+  service produces a sanitized copy of the image with the OCR-derived
+  bounding boxes occluded (black box or gaussian blur) and that
+  sanitized copy is what gets moved to the execution target. The
+  original image is left untouched on the source path.
+
+- **`IFileHashService`** — SHA-256 digests are computed before and after
+  every relocation so the executor can prove that NAS-to-NAS moves did
+  not corrupt content. The pre-move digest is persisted on
+  `RedactedFileDescriptor.ContentHash`; the post-move digest is recorded
+  on the matching `FileRelocationRecord`.
+
+- **`IStructureExecutionService.RollbackAsync`** + **`ICleaningService.RollbackStructurePlanAsync`** —
+  reverses every successful `FileRelocationRecord` for the cleaning,
+  restoring each file from `AfterPath` back to `BeforePath`. Records are
+  flipped to `RelocationStatus.RolledBack`. Per-record failures are
+  reported without aborting the rest. This is the user-facing "Undo"
+  for an executed structure plan; archive the cleaning afterward only
+  if the rollback was a true cancellation.
 
 ---
 
