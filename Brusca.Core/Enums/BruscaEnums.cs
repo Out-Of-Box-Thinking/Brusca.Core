@@ -125,14 +125,26 @@ public enum CommandLanguage
 }
 
 /// <summary>
-/// Where the Cleaning will actually make changes.
-/// Chosen by the user before execution; always confirmed with a warning.
+/// Where the Cleaning will materialize its organized output.
+///
+/// Brusca treats the original source files as <b>strictly read-only</b> at all
+/// times. Structure execution therefore always <i>copies</i> files into the
+/// target layout — it never moves, renames, or deletes anything under
+/// <c>RootPath</c>. The choice below only governs whether the materialized
+/// copies land inside the original root (under new subfolders) or in a
+/// completely separate staging directory.
 /// </summary>
 public enum ExecutionTarget
 {
-    /// <summary>Apply changes directly to the original RootPath (double-confirmed).</summary>
+    /// <summary>
+    /// Materialize copies under the original <c>RootPath</c> (in newly created
+    /// subfolders). Originals remain untouched — this still produces copies, never moves.
+    /// </summary>
     SourcePath = 0,
-    /// <summary>Apply changes to an alternate path (safe copy / staging area).</summary>
+    /// <summary>
+    /// Materialize copies under <c>AlternateExecutionPath</c> — the recommended
+    /// option. Originals remain completely untouched at <c>RootPath</c>.
+    /// </summary>
     AlternatePath = 1
 }
 
@@ -230,18 +242,26 @@ public enum PiiKind
     Custom = 99
 }
 
-/// <summary>What kind of file-system change a relocation record represents.</summary>
+/// <summary>
+/// What kind of file-system change a relocation record represents.
+///
+/// Note: Brusca's structure-execution pipeline keeps original files
+/// strictly read-only, so concrete file operations always produce
+/// <see cref="Materialize"/> (or <see cref="CreateDirectory"/>) records.
+/// The <see cref="Move"/> / <see cref="Rename"/> values are retained only
+/// for legacy prompt-step records.
+/// </summary>
 public enum RelocationOperationType
 {
-    /// <summary>Move a file or folder to a new location.</summary>
+    /// <summary>(Legacy) Move a file or folder to a new location.</summary>
     Move = 0,
-    /// <summary>Rename a file or folder in place.</summary>
+    /// <summary>(Legacy) Rename a file or folder in place.</summary>
     Rename = 1,
-    /// <summary>Copy a file or folder, leaving the original.</summary>
+    /// <summary>Copy a file or folder, leaving the original untouched.</summary>
     Copy = 2,
     /// <summary>Create a new directory.</summary>
     CreateDirectory = 3,
-    /// <summary>Materialize a templated path/file from a structure plan.</summary>
+    /// <summary>Materialize a templated path/file from a structure plan (always a copy).</summary>
     Materialize = 4
 }
 
