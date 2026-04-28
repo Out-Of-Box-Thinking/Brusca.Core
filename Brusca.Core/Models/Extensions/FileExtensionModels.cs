@@ -1,3 +1,5 @@
+using Brusca.Core.Enums;
+
 namespace Brusca.Core.Models.Extensions;
 
 /// <summary>

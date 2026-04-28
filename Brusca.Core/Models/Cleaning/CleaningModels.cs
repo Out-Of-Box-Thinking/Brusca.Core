@@ -25,6 +25,14 @@ public sealed class Cleaning
     public int RestartCount { get; set; }
     public DateTime? LastRestartedAtUtc { get; set; }
 
+    // ── Archive support ──────────────────────────────────────────────────────
+    /// <summary>
+    /// Set when the Cleaning has been moved out of the working tables into
+    /// the archive tables. Only one un-archived (active) Cleaning may exist
+    /// at any time.
+    /// </summary>
+    public DateTime? ArchivedAtUtc { get; set; }
+
     // ── Execution target ─────────────────────────────────────────────────────
     /// <summary>
     /// Chosen by the user before execution.

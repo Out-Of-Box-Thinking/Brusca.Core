@@ -26,6 +26,60 @@ public interface ICleaningService
     /// The "after" tree is projected from approved steps — not yet executed.
     /// </summary>
     Task<Result<TreeComparisonResult>> GetTreeComparisonAsync(Guid cleaningId, CancellationToken ct = default);
+
+    // ── PII redaction + structure-plan flow ──────────────────────────────────
+
+    /// <summary>
+    /// Reads every supported file under the cleaning's RootPath, strips PII,
+    /// classifies it as a <see cref="Brusca.Core.Enums.DocumentType"/>, and
+    /// persists a <c>RedactedFileDescriptor</c> with an encrypted PII JSON column.
+    /// PII NEVER leaves the host process unencrypted.
+    /// </summary>
+    Task<Result<IReadOnlyList<Brusca.Core.Models.Pii.RedactedFileDescriptor>>>
+        RedactAndClassifyAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Asks Claude to design the directory layout using ONLY DocumentType +
+    /// extension counts. Saves the result as a <c>DirectoryStructurePlan</c>.
+    /// </summary>
+    Task<Result<DirectoryStructurePlan>> GenerateStructurePlanAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the latest persisted <c>DirectoryStructurePlan</c> for the cleaning.
+    /// </summary>
+    Task<Result<DirectoryStructurePlan>> GetStructurePlanAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Applies the most recently generated structure plan against the execution
+    /// target — decrypting the PII column to fill template slots — and records
+    /// every before/after operation into <c>FileRelocationRecord</c>.
+    /// </summary>
+    Task<Result<IReadOnlyList<FileRelocationRecord>>> ExecuteStructurePlanAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>Returns the before/after relocation log for the cleaning.</summary>
+    Task<Result<IReadOnlyList<FileRelocationRecord>>> GetRelocationsAsync(
+        Guid cleaningId, CancellationToken ct = default);
+
+    // ── Archive flow ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the single Cleaning currently held in the working tables, if any.
+    /// Brusca enforces a one-active-cleaning invariant: while a cleaning is
+    /// in-flight it lives in <c>cleaning.*</c>; once finished it is moved to
+    /// <c>archive.*</c> and the working tables are emptied.
+    /// </summary>
+    Task<Result<Cleaning?>> GetActiveCleaningAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Moves a finished Cleaning (and every related row — file extensions,
+    /// prompt steps, redacted descriptors, structure plans, file relocations)
+    /// from the working tables into the mirror archive tables, then truncates
+    /// the working rows. The cleaning's status is set to <c>Archived</c>.
+    /// </summary>
+    Task<Result> ArchiveCleaningAsync(Guid cleaningId, string userId, CancellationToken ct = default);
 }
 
 public interface IFileSystemService
@@ -60,4 +114,27 @@ public interface IFileExtensionService
 public interface ITreeProjectionService
 {
     DirectoryNode ProjectAfterTree(DirectoryNode before, IReadOnlyList<CleaningPromptStep> approvedSteps);
+}
+
+/// <summary>
+/// Read-only access to runtime secrets. The default implementation in
+/// <c>Brusca.Infrastructure</c> is backed by a local Infisical instance when
+/// <c>BruscaOptions.Infisical.Enabled == true</c>; otherwise it falls back to
+/// <c>IConfiguration</c> so that <c>appsettings.json</c> / environment
+/// variables continue to work for development.
+///
+/// Keys mirror the hierarchical configuration shape, e.g.
+/// <c>"DatabaseConnectionString"</c>, <c>"Claude:ApiKey"</c>,
+/// <c>"Auth:Jwt:SecretKey"</c>.
+/// </summary>
+public interface ISecretProvider
+{
+    /// <summary>Resolves a secret by key. Returns <c>null</c> when not found.</summary>
+    Task<string?> GetSecretAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// Forces a refresh of any cached secrets from the underlying store.
+    /// Called on a timer or on demand when configuration appears stale.
+    /// </summary>
+    Task RefreshAsync(CancellationToken ct = default);
 }
