@@ -60,6 +60,26 @@ public interface ICleaningService
         Guid cleaningId, CancellationToken ct = default);
 
     /// <summary>
+    /// For every <see cref="Brusca.Core.Models.Pii.RedactedFileDescriptor"/> in
+    /// the cleaning, asks Claude to map the file's PII segment ordinals to the
+    /// named slots required by the directory-structure plan and persists the
+    /// result on <c>RedactedFile.SlotMapJson</c>. Must run AFTER
+    /// <see cref="GenerateStructurePlanAsync"/> and BEFORE
+    /// <see cref="ExecuteStructurePlanAsync"/>.
+    /// </summary>
+    Task<Result> MapSlotsAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Verifies that every file matched by a structure rule has a slot map
+    /// satisfying that rule's <c>RequiredTokenSlots</c>. Returns one
+    /// <see cref="Brusca.Core.Models.Pii.MissingSlotReport"/> row per file
+    /// that would fail rehydration. An empty list means the cleaning is safe
+    /// to execute.
+    /// </summary>
+    Task<Result<IReadOnlyList<Brusca.Core.Models.Pii.MissingSlotReport>>>
+        ValidateSlotsAsync(Guid cleaningId, CancellationToken ct = default);
+
+    /// <summary>
     /// Identifies groups of byte-identical files (same SHA-256 content hash)
     /// inside the cleaning. Used by the UI to surface duplicates to the user
     /// before structure execution skips them.

@@ -86,6 +86,15 @@ public sealed class RedactedFileDescriptor
     /// </summary>
     public string? ImageRedactionRegionsJson { get; set; }
 
+    /// <summary>
+    /// Plaintext JSON map (slot name → <see cref="PiiSegment.Ordinal"/>) produced
+    /// by <c>IPiiSlotMappingService</c> after Claude has published the structure
+    /// plan's <c>RequiredTokenSlots</c>. Slot names and ordinals are NOT PII;
+    /// resolving a slot to its literal still requires decrypting
+    /// <see cref="EncryptedPiiJson"/>.
+    /// </summary>
+    public string? SlotMapJson { get; set; }
+
     public DateTime DiscoveredAtUtc { get; init; } = DateTime.UtcNow;
 }
 

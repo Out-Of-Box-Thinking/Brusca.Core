@@ -122,6 +122,15 @@ public interface IRedactedFileRepository
         Guid redactedFileId,
         IEnumerable<PiiKind> kinds,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Persists the plaintext per-file slot map JSON
+    /// (<c>RedactedFile.SlotMapJson</c>) produced by <c>IPiiSlotMappingService</c>.
+    /// </summary>
+    Task<Result> UpdateSlotMapAsync(
+        Guid redactedFileId,
+        string slotMapJson,
+        CancellationToken ct = default);
 }
 
 /// <summary>Persists the Claude-generated directory structure plan and its rules.</summary>
