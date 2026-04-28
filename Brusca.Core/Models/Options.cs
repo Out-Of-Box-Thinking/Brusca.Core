@@ -203,6 +203,22 @@ public sealed class MaterializationOptions
     /// Strategy used to pick the keeper inside a duplicate group.
     /// </summary>
     public DuplicateKeepStrategy DuplicateKeepStrategy { get; set; } = DuplicateKeepStrategy.KeepFirstPath;
+
+    /// <summary>
+    /// When true, every materialized image/PDF/Office document is run through
+    /// <c>IFileMetadataStripper</c> after copy/redact so identifying metadata
+    /// (EXIF/XMP, PDF /Info+/Metadata, OpenXml core/extended/custom properties)
+    /// is removed from the redacted copy. Originals are never touched.
+    /// </summary>
+    public bool StripMetadata { get; set; } = true;
+
+    /// <summary>
+    /// When true, image files with computed <c>ImageRedactionRegionsJson</c>
+    /// regions are materialized via <c>IImageRedactionService</c> instead of
+    /// <c>File.Copy</c>, so PII regions are occluded in the destination.
+    /// Has no effect when no image-redactor is registered.
+    /// </summary>
+    public bool SanitizeImages { get; set; } = true;
 }
 
 /// <summary>

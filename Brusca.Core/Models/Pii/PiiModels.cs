@@ -77,6 +77,15 @@ public sealed class RedactedFileDescriptor
     /// <summary>Hash of the original file content (SHA-256, hex) for integrity checks.</summary>
     public string? ContentHash { get; set; }
 
+    /// <summary>
+    /// JSON-serialized array of <c>ImageRedactionRegion</c> coordinates
+    /// (no PII text — bounding boxes only) computed during redaction for
+    /// image files. Consumed by <c>IImageRedactionService</c> at
+    /// materialization time so the image copy emerges with PII regions
+    /// occluded. Null for non-image content or when no PII was detected.
+    /// </summary>
+    public string? ImageRedactionRegionsJson { get; set; }
+
     public DateTime DiscoveredAtUtc { get; init; } = DateTime.UtcNow;
 }
 

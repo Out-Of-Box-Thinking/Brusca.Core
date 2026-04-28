@@ -151,9 +151,11 @@ public interface IDuplicateDetectionService
 }
 
 /// <summary>
-/// Optional, hash-gated, recycle-bin-based finalisation step. For every
+/// Optional, hash-gated, trash-based finalisation step. For every
 /// successfully-materialized relocation, verifies the post-move hash matches
-/// the original then sends the original to the recycle bin. Windows-only.
+/// the original then sends the original to the OS trash via
+/// <see cref="ITrashService"/>. Cross-platform (Windows recycle bin,
+/// Linux freedesktop trash, macOS Finder trash).
 /// </summary>
 public interface IPromotionService
 {
@@ -238,4 +240,54 @@ public interface IOcrService
     /// the file or its contents off-host.
     /// </summary>
     Task<Result<string>> ExtractTextAsync(string filePath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Reads <paramref name="filePath"/> and returns the recognized text
+    /// together with per-word bounding-box metadata. The host then maps
+    /// redacted PII spans (character offsets) back to bounding boxes and
+    /// hands the regions to <see cref="IImageRedactionService"/> so the
+    /// materialized image copy emerges sanitized.
+    ///
+    /// Implementations MUST NOT log recognized text.
+    /// </summary>
+    Task<Result<OcrTextResult>> ExtractTextWithRegionsAsync(
+        string filePath, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Strips identifying metadata (EXIF/XMP/Office core/extended/custom
+/// properties, PDF /Info + /Metadata) from a file that has already been
+/// materialized to the execution target. Originals are never touched —
+/// stripping happens on the redacted copy only.
+///
+/// Implementations are extension-aware and MUST be local-only.
+/// </summary>
+public interface IFileMetadataStripper
+{
+    /// <summary>True when the implementation supports the given extension.</summary>
+    bool CanStrip(string extension);
+
+    /// <summary>
+    /// Strips identifying metadata from the file at <paramref name="filePath"/>
+    /// in-place. Returns <c>Ok</c> with no payload when the file's extension
+    /// has no stripper, so callers can apply the pass unconditionally.
+    /// </summary>
+    Task<Result> StripAsync(
+        string filePath, string extension, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Cross-platform "send to trash" abstraction used by <see cref="IPromotionService"/>.
+/// Implementations:
+///   ‣ Windows  — recycle bin via Microsoft.VisualBasic.FileIO.FileSystem
+///   ‣ Linux    — freedesktop.org Trash spec (~/.local/share/Trash)
+///   ‣ macOS    — Finder via osascript, falling back to ~/.Trash
+///
+/// Originals MUST never be permanently deleted by these implementations —
+/// they MUST always remain recoverable from the system trash.
+/// </summary>
+public interface ITrashService
+{
+    /// <summary>Sends <paramref name="path"/> to the OS trash/recycle bin.</summary>
+    Task<Result> MoveToTrashAsync(string path, CancellationToken ct = default);
 }
